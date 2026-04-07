@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Interview Assistant</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: transparent; overflow: hidden;
+    user-select: none; height: 100vh;
+  }
+  #container {
+    width: 100%; height: 100vh; display: flex; flex-direction: column;
+    background: rgba(10,12,18,0.90);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; overflow: hidden;
+  }
+
+  /* TITLE BAR */
+  #titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    -webkit-app-region: drag; flex-shrink: 0;
+  }
+  .tb-left { display: flex; align-items: center; gap: 8px; -webkit-app-region: drag; }
+  .tb-dot  { width:8px; height:8px; border-radius:50%; background:#444; flex-shrink:0; transition:all .3s; }
+  .tb-dot.rec      { background:#f87171; box-shadow:0 0 8px #f87171; animation:blink 1s infinite; }
+  .tb-dot.thinking { background:#fbbf24; box-shadow:0 0 8px #fbbf24; animation:blink .6s infinite; }
+  .tb-dot.ok       { background:#3ecf8e; box-shadow:0 0 6px #3ecf8e; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .tb-title { font-size:12px; font-weight:600; color:rgba(255,255,255,.85); }
+  .tb-sub   { font-size:10px; color:rgba(255,255,255,.28); font-family:monospace; }
+  .tb-btns  { display:flex; gap:4px; -webkit-app-region:no-drag; }
+  .ib {
+    width:24px; height:24px; border-radius:6px; border:none;
+    background:rgba(255,255,255,.06); color:rgba(255,255,255,.45);
+    font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all .15s; -webkit-app-region:no-drag;
+  }
+  .ib:hover { background:rgba(255,255,255,.13); color:#fff; }
+
+  /* KEY ROW */
+  #keyRow {
+    display:flex; gap:6px; padding:7px 10px;
+    border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0;
+  }
+  #keyRow input {
+    flex:1; font-size:11px; font-family:monospace;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.8); padding:5px 9px; border-radius:7px; outline:none;
+  }
+  #keyRow input:focus { border-color:rgba(79,158,255,.55); }
+  #keyRow input::placeholder { color:rgba(255,255,255,.2); }
+  .freekey {
+    font-size:10px; color:#4f9eff; padding:5px 8px;
+    border:1px solid rgba(79,158,255,.3); border-radius:7px;
+    white-space:nowrap; cursor:pointer; transition:background .15s;
+  }
+  .freekey:hover { background:rgba(79,158,255,.15); }
+
+  /* META */
+  #metaRow {
+    display:flex; gap:6px; padding:6px 10px;
+    border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0;
+  }
+  select {
+    font-family:'Segoe UI',sans-serif; font-size:11px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.75); padding:5px 8px; border-radius:7px;
+    outline:none; cursor:pointer; flex:1;
+  }
+  select option { background:#1a1a2e; color:#fff; }
+
+  /* CONTEXT */
+  #contextRow {
+    padding:6px 10px; display:flex;
+    border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0;
+  }
+  #contextInput {
+    font-family:'Segoe UI',sans-serif; font-size:11px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.8); padding:6px 9px; border-radius:7px;
+    outline:none; resize:vertical; min-height:40px; max-height:150px; width:100%;
+  }
+  #contextInput:focus { border-color:rgba(79,158,255,.55); }
+  #contextInput::placeholder { color:rgba(255,255,255,.2); }
+
+  /* MODE TABS */
+  #modeRow {
+    display:flex; gap:4px; padding:6px 10px;
+    border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0;
+  }
+  .tab {
+    flex:1; font-size:11px; font-weight:500; padding:6px 5px;
+    border-radius:7px; border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.04); color:rgba(255,255,255,.38);
+    cursor:pointer; transition:all .15s; text-align:center;
+  }
+  .tab.active { background:rgba(79,158,255,.18); border-color:rgba(79,158,255,.4); color:#7ec8ff; }
+
+  /* VOICE PANEL */
+  #voicePanel {
+    padding:8px 10px; display:flex; flex-direction:column; gap:7px;
+    border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0;
+  }
+  .brow { display:flex; gap:6px; }
+  .btn {
+    font-family:'Segoe UI',sans-serif; font-size:11px; font-weight:500;
+    padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.1);
+    background:rgba(255,255,255,.06); color:rgba(255,255,255,.7);
+    cursor:pointer; transition:all .15s; flex:1; text-align:center;
+  }
+  .btn:hover:not(:disabled) { background:rgba(255,255,255,.12); color:#fff; }
+  .btn:disabled { opacity:.3; cursor:not-allowed; }
+  .btn-rec  { background:rgba(248,113,113,.18); border-color:rgba(248,113,113,.4); color:#f87171; }
+  .btn-rec.recording { background:rgba(248,113,113,.32); border-color:#f87171; color:#fff; animation:ringPulse 1.2s infinite; }
+  .btn-ans  { background:rgba(79,158,255,.2); border-color:rgba(79,158,255,.45); color:#7ec8ff; }
+  .btn-ans:hover:not(:disabled) { background:rgba(79,158,255,.32); }
+  @keyframes ringPulse { 0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,.4)} 50%{box-shadow:0 0 0 6px rgba(248,113,113,0)} }
+
+  /* STATUS BOX */
+  #statusBox {
+    font-size:11px; padding:7px 10px; border-radius:8px;
+    border:1px solid rgba(255,255,255,.07); background:rgba(255,255,255,.03);
+    color:rgba(255,255,255,.4); line-height:1.55; min-height:30px;
+    word-break:break-word; white-space:pre-wrap; transition:all .2s;
+  }
+  #statusBox.err  { background:rgba(248,113,113,.09); border-color:rgba(248,113,113,.3); color:#f87171; }
+  #statusBox.ok   { background:rgba(62,207,142,.08);  border-color:rgba(62,207,142,.3);  color:#3ecf8e; }
+  #statusBox.info { background:rgba(79,158,255,.08);  border-color:rgba(79,158,255,.25); color:#7ec8ff; }
+
+  /* WAVE VISUALISER */
+  #waveWrap { display:none; height:36px; align-items:center; gap:2px; justify-content:center; }
+  #waveWrap.show { display:flex; }
+  .wave-bar {
+    width:3px; border-radius:2px; background:#f87171; opacity:.7;
+    animation:wave 0.8s ease-in-out infinite;
+    transform-origin:bottom;
+  }
+  @keyframes wave { 0%,100%{height:4px} 50%{height:24px} }
+
+  /* TYPE PANEL */
+  #typePanel {
+    display:none; padding:8px 10px; gap:7px;
+    border-bottom:1px solid rgba(255,255,255,.06); flex-shrink:0; flex-direction:column;
+  }
+  #typeInput {
+    font-family:'Segoe UI',sans-serif; font-size:12px;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.85); padding:8px 10px; border-radius:8px;
+    outline:none; resize:none; min-height:58px; line-height:1.5; width:100%;
+  }
+  #typeInput:focus { border-color:rgba(79,158,255,.5); }
+  #typeInput::placeholder { color:rgba(255,255,255,.2); }
+
+  /* ANSWERS */
+  #answerFeed {
+    flex:1; overflow-y:auto; padding:8px 10px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  #answerFeed::-webkit-scrollbar { width:3px; }
+  #answerFeed::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
+
+  .answer-card {
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
+    border-radius:10px; padding:10px 12px; animation:fadeUp .25s ease;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+  .card-q {
+    font-size:10px; color:rgba(255,255,255,.3); margin-bottom:9px;
+    display:flex; gap:5px; align-items:flex-start; line-height:1.4;
+  }
+  .qbadge {
+    font-size:9px; font-weight:700; background:rgba(79,158,255,.2); color:#7ec8ff;
+    padding:1px 5px; border-radius:4px; flex-shrink:0; font-family:monospace; margin-top:1px;
+  }
+  .bullet-row {
+    display:flex; gap:8px; align-items:flex-start;
+    font-size:12.5px; line-height:1.7; color:rgba(255,255,255,.9); margin-bottom:6px;
+  }
+  .bullet-row:last-child { margin-bottom:0; }
+  .bnum {
+    font-size:9px; font-weight:600; font-family:monospace;
+    background:rgba(62,207,142,.18); color:#3ecf8e;
+    padding:2px 5px; border-radius:4px; flex-shrink:0; margin-top:3px; min-width:22px; text-align:center;
+  }
+  .empty-state {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:8px; padding:24px; color:rgba(255,255,255,.18); font-size:11px; text-align:center; flex:1;
+  }
+  .skel-card {
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:10px 12px;
+  }
+  .skel {
+    height:11px; border-radius:5px; margin-bottom:7px;
+    background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.05) 75%);
+    background-size:200% 100%; animation:shimmer 1.3s infinite;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .err-card {
+    background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.25);
+    border-radius:10px; padding:10px 12px; font-size:11px; color:#f87171; line-height:1.55;
+  }
+
+  /* SHORTCUTS */
+  #tips {
+    padding:5px 10px; font-size:9px; color:rgba(255,255,255,.17);
+    border-top:1px solid rgba(255,255,255,.05); flex-shrink:0; display:flex; gap:12px; flex-wrap:wrap;
+  }
+  kbd {
+    background:rgba(255,255,255,.07); border-radius:3px;
+    padding:1px 4px; font-family:monospace; font-size:9px; color:rgba(255,255,255,.3);
+  }
+</style>
+</head>
+<body>
+<div id="container">
+
+  <div id="titlebar">
+    <div class="tb-left">
+      <div class="tb-dot" id="dot"></div>
+      <div>
+        <div class="tb-title">Interview Assistant</div>
+        <div class="tb-sub" id="statusTxt">idle</div>
+      </div>
+    </div>
+    <div class="tb-btns">
+      <button class="ib" onclick="ipcRenderer.send('resize',48)" title="Minimize">—</button>
+      <button class="ib" onclick="ipcRenderer.send('close')" title="Hide">✕</button>
+    </div>
+  </div>
+
+  <div id="keyRow">
+    <input type="password" id="apiKey" placeholder="Paste Groq API key (free)..." autocomplete="off"/>
+    <span class="freekey" onclick="openLink()">Free key ↗</span>
+  </div>
+
+  <div id="metaRow">
+    <select id="roleSelect">
+      <option value="software engineer">Software Engineer</option>
+      <option value="frontend developer">Frontend Dev</option>
+      <option value="backend developer">Backend Dev</option>
+      <option value="full stack developer">Full Stack Dev</option>
+      <option value="data analyst">Data Analyst</option>
+      <option value="data scientist">Data Scientist</option>
+      <option value="product manager">Product Manager</option>
+      <option value="devops engineer">DevOps Engineer</option>
+      <option value="machine learning engineer">ML Engineer</option>
+      <option value="Genrative AI engineer">Genrative AI engineer</option>
+      <option value="general">General Role</option>
+    </select>
+  </div>
+
+  <div id="contextRow">
+    <textarea id="contextInput" placeholder="Paste JD, Resume, or context... (optional)"></textarea>
+  </div>
+
+  <div id="modeRow">
+    <button class="tab active" id="tabVoice" onclick="setMode('voice')">🎙 Voice (Whisper)</button>
+    <button class="tab"        id="tabType"  onclick="setMode('type')">⌨ Type</button>
+  </div>
+
+  <!-- VOICE PANEL -->
+  <div id="voicePanel">
+    <div class="brow">
+      <button class="btn btn-rec" id="recBtn" onclick="toggleRecord()">⏺ Record Question</button>
+      <button class="btn btn-ans" id="ansBtn" onclick="processAudio()" disabled>✦ Get Answer</button>
+    </div>
+    <!-- wave bars (shown while recording) -->
+    <div id="waveWrap">
+      <div class="wave-bar" style="animation-delay:0s"></div>
+      <div class="wave-bar" style="animation-delay:.1s"></div>
+      <div class="wave-bar" style="animation-delay:.2s"></div>
+      <div class="wave-bar" style="animation-delay:.3s"></div>
+      <div class="wave-bar" style="animation-delay:.15s"></div>
+      <div class="wave-bar" style="animation-delay:.25s"></div>
+      <div class="wave-bar" style="animation-delay:.05s"></div>
+      <div class="wave-bar" style="animation-delay:.35s"></div>
+    </div>
+    <div id="statusBox" class="info">Press ⏺ Record → speak → press ⏹ Stop → click ✦ Get Answer</div>
+  </div>
+
+  <!-- TYPE PANEL -->
+  <div id="typePanel">
+    <textarea id="typeInput" placeholder="Type interview question... (Ctrl+Enter to submit)"></textarea>
+    <button class="btn btn-ans" onclick="submitType()">Get Answer ↗</button>
+  </div>
+
+  <!-- ANSWERS -->
+  <div id="answerFeed">
+    <div class="empty-state" id="emptyState">
+      <div style="font-size:24px">💬</div>
+      <div>Answers appear here<br/>as numbered bullet points</div>
+    </div>
+  </div>
+
+  <div id="tips">
+    <span><kbd>Ctrl+Shift+Space</kbd> show/hide</span>
+    <span><kbd>Ctrl+Shift+M</kbd> minimize</span>
+    <span><kbd>Ctrl+Enter</kbd> submit</span>
+  </div>
+</div>
+
+<script>
+const { ipcRenderer, shell } = require('electron');
+
+let mediaRecorder = null;
+let audioChunks   = [];
+let isRecording   = false;
+let audioBlob     = null;
+let ansCount      = 0;
+let micStream     = null;
+let sessionMemory = [];
+
+function openLink() { shell.openExternal('https://console.groq.com/keys'); }
+
+function setMode(m) {
+  document.getElementById('voicePanel').style.display = m==='voice' ? 'flex' : 'none';
+  document.getElementById('typePanel').style.display  = m==='type'  ? 'flex' : 'none';
+  document.getElementById('tabVoice').classList.toggle('active', m==='voice');
+  document.getElementById('tabType').classList.toggle('active',  m==='type');
+}
+
+function setDot(s) {
+  document.getElementById('dot').className = 'tb-dot ' + (s||'');
+  document.getElementById('statusTxt').textContent = s||'idle';
+}
+
+function setBox(type, msg) {
+  const b = document.getElementById('statusBox');
+  b.className = type||'';
+  b.textContent = msg;
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='Enter') submitType();
+});
+
+// ── RECORD using MediaRecorder (built into Electron, no SoX needed) ──
+async function toggleRecord() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { setBox('err','⚠ Paste your Groq API key first.'); return; }
+
+  if (!isRecording) {
+    // ── START ──
+    try {
+      setBox('info','⏳ Requesting microphone...');
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch(err) {
+      let hint = '';
+      if (err.name==='NotAllowedError')  hint = 'Mic permission denied. Allow mic in system settings.';
+      else if (err.name==='NotFoundError') hint = 'No microphone found. Plug one in and try again.';
+      else hint = err.name + ': ' + err.message;
+      setBox('err','❌ ' + hint);
+      return;
+    }
+
+    audioChunks = [];
+    audioBlob   = null;
+
+    // Pick best supported format
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/webm')
+      ? 'audio/webm'
+      : '';
+
+    mediaRecorder = new MediaRecorder(micStream, mimeType ? { mimeType } : {});
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+      document.getElementById('ansBtn').disabled = false;
+      document.getElementById('recBtn').textContent = '⏺ Record Question';
+      document.getElementById('recBtn').classList.remove('recording');
+      document.getElementById('waveWrap').classList.remove('show');
+      setBox('info','⏳ Audio captured! Auto-transcribing...');
+      
+      // Auto-trigger instead of waiting for Get Answer
+      processAudio();
+    };
+
+    mediaRecorder.onerror = e => {
+      setBox('err','❌ Recording error: ' + e.error);
+      isRecording = false;
+    };
+
+    mediaRecorder.start(100); // collect data every 100ms
+    isRecording = true;
+
+    document.getElementById('recBtn').textContent = '⏹ Stop Recording';
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('ansBtn').disabled = true;
+    document.getElementById('waveWrap').classList.add('show');
+    setBox('ok','🎙 Recording... speak the question clearly, then click Stop.');
+    setDot('rec');
+
+  } else {
+    // ── STOP ──
+    isRecording = false;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop(); // triggers onstop above
+    }
+    setBox('info','⏳ Saving audio...');
+    setDot('');
+  }
+}
+
+// ── SEND TO WHISPER ──
+async function processAudio() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!audioBlob || audioBlob.size < 500) {
+    setBox('err','No audio found. Please record again.'); return;
+  }
+
+  document.getElementById('ansBtn').disabled = true;
+  document.getElementById('recBtn').disabled = true;
+  setDot('thinking');
+  setBox('info','⏳ Transcribing with Whisper...');
+
+  try {
+    // Convert Blob → ArrayBuffer → send to main process to write file
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const saveResult  = await ipcRenderer.invoke('save-audio', { arrayBuffer });
+
+    if (!saveResult.ok) throw new Error('Save failed: ' + saveResult.error);
+
+    const txResult = await ipcRenderer.invoke('transcribe-audio', {
+      filePath: saveResult.filePath,
+      apiKey:   key,
+    });
+
+    if (!txResult.ok) throw new Error('Transcription failed: ' + txResult.error);
+
+    const question = txResult.text;
+    if (!question) throw new Error('Whisper returned empty text. Speak louder or closer to the mic.');
+
+    setBox('ok','✅ Heard: "' + question + '"');
+    await askGroq(question);
+
+  } catch(err) {
+    setBox('err','❌ ' + err.message);
+    setDot('');
+  } finally {
+    document.getElementById('recBtn').disabled = false;
+    document.getElementById('ansBtn').disabled = false;
+  }
+}
+
+// ── TYPE MODE ──
+function submitType() {
+  const q   = document.getElementById('typeInput').value.trim();
+  const key = document.getElementById('apiKey').value.trim();
+  if (!q)   return;
+  if (!key) { setBox('err','⚠ Paste your Groq API key first.'); return; }
+  document.getElementById('typeInput').value = '';
+  askGroq(q);
+}
+
+// ── GROQ LLM ──
+async function askGroq(question) {
+  const key  = document.getElementById('apiKey').value.trim();
+  const role = document.getElementById('roleSelect').value;
+  const context = document.getElementById('contextInput').value.trim();
+
+  const es = document.getElementById('emptyState');
+  if (es) es.remove();
+  setDot('thinking');
+
+  const feed = document.getElementById('answerFeed');
+  const loadCard = document.createElement('div');
+  loadCard.className = 'skel-card';
+  loadCard.innerHTML = `
+    <div style="font-size:10px;color:rgba(255,255,255,.22);margin-bottom:8px">Q: ${esc(question)}</div>
+    <div class="skel" style="width:95%"></div>
+    <div class="skel" style="width:82%"></div>
+    <div class="skel" style="width:89%"></div>
+    <div class="skel" style="width:74%"></div>
+    <div class="skel" style="width:92%"></div>`;
+  feed.insertBefore(loadCard, feed.firstChild);
+  const sys = `You are a senior AI engineer and Data Scientist with strong real-world experience in analytics and engineering. 
+  Answer like you are in a live interview, speaking naturally and clearly, using simple English. 
+  Avoid complex or textbook language; if you must use a technical term, explain it briefly in plain words.
+  \n\nOBJECTIVE:\n
+  Your answer should feel like a confident, real explanation from someone who has actually built systems, not memorized theory. 
+  Keep it practical, structured, and content-rich.
+  \n\nSTRICT RULES:\n
+  - Answer in 5 to 8 lines only\n
+  - Each line must be 25 to 35 words\n
+  - Each line must be meaningful and add new information (no filler)\n
+  - Use simple, spoken English (no fancy or robotic wording)\n
+  - Maintain a clear logical flow\n
+  - Highlight 1-3 important keywords in each line by wrapping them in double asterisks, like **keyword**\n\n
+  DEFAULT FLOW (MANDATORY):\n
+  1. What is it (simple **technical** definition in plain English)\n
+  2. Why do we use it (problem it solves, practical value)\n
+  3. How to use it (step-by-step working or flow in real systems)\n
+  4. Production perspective (scaling, reliability, real-world considerations)\n
+  5. Technical analogy (relate to a real-IT process for clarity)\n
+  6. Example in AI/ML (real use case like recommendation, NLP, fraud detection, etc.)\n
+  7. Optional usage or extension if needed\n\n
+  SPECIAL CASE HANDLING:\n
+  - First, detect if the question is a \"what will you do\" or \"how would you approach\" type\n
+  - If YES, start with: \"I would approach it as follows\"\n
+  - Then give a structured, step-by-step practical solution (not theory), covering data, modeling, validation, and production considerations\n
+  - Still follow simple English and natural spoken tone\n\n
+  IMPORTANT BEHAVIOR:\n
+  - Do NOT give short or generic answers\n
+  - Do NOT sound like notes or definitions\n
+  - Do NOT skip real-world or production insights\n
+  - Always sound like explaining to an interviewer with hands-on experience\n\n
+  OUTPUT FORMAT (STRICT):\n
+  - Return ONLY valid JSON\n
+  - No extra text before or after\n- 
+  Format exactly as:\n{\"bullets\":[\"sentence 1\",\"sentence 2\",\"sentence 3\",\"sentence 4\",\"sentence 5\"]}\n\n
+  TOPIC:\n
+  The topic of the answer will be provided dynamically as 'it'. Generate the response based on that topic.
+  EXAMPLE:\n
+  Question: 
+ 1. What is RAG?
+{"bullets":["**RAG**, or **Retrieval Augmented Generation**, is a technique where we combine a language model with an **external knowledge source**, so instead of relying only on training data, it can fetch and use real, updated information.","We use RAG because LLMs alone can give **wrong or outdated answers**, so **retrieval** helps bring accurate, domain-specific data, especially useful in enterprise cases where company documents or private data are involved.","To use RAG, we first store documents in a **vector database** using **embeddings**, then when a query comes, we retrieve the most relevant chunks and pass them along with the query to the LLM for generation.","In production, we focus on **chunking strategy**, **embedding quality**, **latency optimization**, caching, and evaluation, because poor retrieval directly impacts answer quality, so monitoring and tuning become very important.","In AI/ML use cases, RAG is used in chatbots over **company data**, legal document assistants, healthcare knowledge systems, and support bots where answers must be grounded in **trusted and up-to-date sources**.","In real systems, we integrate RAG with **APIs**, document pipelines, and **feedback loops** to continuously improve retrieval accuracy and make the system reliable for large-scale user interactions."]}
+2. Why multi-agent systems outperform single-agent LLMs?
+{"bullets":["A **single LLM** trying to handle planning, reasoning, retrieval, and execution all together often struggles with complex tasks, leading to **reduced accuracy** and inconsistent outputs.","**Multi-agent systems** improve performance by **separating responsibilities**, where different agents specialize in tasks such as planning, retrieval, and execution, making the system more modular and efficient.","This division of tasks allows each agent to **focus on a specific function**, which improves overall **accuracy**, **scalability**, and reliability of the system compared to a monolithic approach.","We use multi-agent systems in real-world applications because **complex workflows** require coordination of multiple steps, and distributing these steps across agents ensures better **control and performance**.","In implementation, one agent typically **plans** the workflow, another **retrieves** relevant data, and another **executes** actions, often coordinated through orchestration frameworks or pipelines.","In production environments, multi-agent systems make **debugging much easier** because failures can be traced back to a specific component such as the planner, retriever, or executor instead of treating the entire system as a **black box**."]}
+3. What is Lasso and Ridge?
+{"bullets":["**Lasso** and **Ridge** are **regularization techniques** used in machine learning to prevent **overfitting**, which means the model memorizes training data instead of learning patterns, by adding a penalty term to the loss function.","We use them because in real datasets we often have **too many features** or noisy data, and regularization helps **control model complexity** so it generalizes better to unseen data instead of performing well only on training data.","**Ridge** adds a penalty on squared weights, so it shrinks coefficients smoothly but keeps all features, while **Lasso** adds absolute penalty which can push some coefficients **exactly to zero**, effectively doing feature selection.","To use them, we apply **L1 regularization** for Lasso and **L2** for Ridge while training models like linear or logistic regression, and tune the penalty strength parameter using **cross-validation** to balance bias and variance.","In production, regularization helps make models **stable** and less sensitive to noise, especially in **high-dimensional data**, and also reduces risk of overfitting when deploying models on real-world, constantly changing data.","In AI/ML use cases, **Lasso** is useful when we want **automatic feature selection** like in text or gene data, while **Ridge** is preferred when all features contribute but need **controlled influence**, like in regression problems."]}`;
+ 
+  let finalSys = sys;
+  if (context) {
+    finalSys += `\n\nADDITIONAL CONTEXT (Use this to tailor your response):\n${context}\n`;
+  }
+//   const sys = `You are a senior ${role} helping someone ace their job interview.
+// Write approx 5 bullet points to answer the question. **IMPORTANT - THE ANSWER SHOULD SOUND LIKE HUMAN AND NO FANCY WORDS, JUST PLAIN NATURALLANGUAGE**
+
+// STRICT rules:
+// - Every bullet MUST be a full sentence, 15-25 words and sentence 1 should be the definition of the topic.
+// - Simple English — like explaining to a friend new to the field WITH NUTRAL TONE AND NOT FANCY WORDS.
+// - Specific and practical. Include examples where useful.
+// - The sequesnce of the response should be intelligent and logical. start with simple/ understandabe definition and then explain how it actually works.
+// - The response should NOT SOUND BOOKISH , rather should sound like a person who has actually experience with the topic is explaining it to you.
+// - NEVER write one-liners. BAD: "Understand transformers". 
+//   GOOD: "Transformers process all words simultaneously using self-attention, unlike RNNs that go word by word — this makes them much faster."
+// - Return ONLY valid JSON, nothing else:
+// {"bullets":["sentence 1","sentence 2","sentence 3","sentence 4","sentence 5",...]}`;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role:'system', content: finalSys },
+          ...sessionMemory,
+          { role:'user',   content: 'Interview question: ' + question }
+        ],
+        temperature: 0.6, max_tokens: 1000,
+        response_format: { type:'json_object' }
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err?.error?.message || 'API error ' + res.status);
+    }
+
+    const data = await res.json();
+    const raw  = data?.choices?.[0]?.message?.content || '';
+    let bullets = [];
+    let diagram = null;
+    try { 
+      const parsed = JSON.parse(raw);
+      bullets = parsed.bullets || []; 
+      diagram = parsed.diagram || null;
+    }
+    catch { bullets = raw.split('\n').map(l=>l.replace(/^[\-\*\d\.\s]+/,'').trim()).filter(l=>l.length>15).slice(0,5); }
+
+    if (!bullets.length) throw new Error('Empty response. Try again.');
+
+    // Save to memory
+    sessionMemory.push({ role: 'user', content: question });
+    sessionMemory.push({ role: 'assistant', content: raw });
+
+    ansCount++;
+    const card = document.createElement('div');
+    card.className = 'answer-card';
+    
+    let diagramHtml = '';
+    if (diagram) {
+       diagramHtml = `<div class="mermaid" style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.2); border-radius:8px; text-align:center;">${esc(diagram)}</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="card-q">
+        <span class="qbadge">Q${ansCount}</span>
+        <span style="color:rgba(255,255,255,.38)">${esc(question)}</span>
+      </div>
+      ${bullets.map((b,i)=>`
+        <div class="bullet-row">
+          <span class="bnum">${String(i+1).padStart(2,'0')}</span>
+          <span>${formatText(b)}</span>
+        </div>`).join('')}
+      ${diagramHtml}`;
+    feed.replaceChild(card, loadCard);
+
+    if (diagram) {
+        try {
+            mermaid.init(undefined, '.mermaid');
+        } catch (e) {
+            console.error('Mermaid render error: ', e);
+        }
+    }
+
+    setDot('ok');
+    ipcRenderer.send('resize', Math.min(document.body.scrollHeight + 20, 700));
+
+  } catch(err) {
+    const errCard = document.createElement('div');
+    errCard.className = 'err-card';
+    errCard.textContent = '⚠ ' + err.message;
+    feed.replaceChild(errCard, loadCard);
+    setDot('');
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatText(s) {
+  let escaped = esc(s);
+  return escaped.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #7ec8ff; font-weight: 700; font-size: 13.5px;">$1</strong>');
+}
+
+setMode('voice');
+</script>
+</body>
+</html>
